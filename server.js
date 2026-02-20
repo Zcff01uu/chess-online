@@ -8,32 +8,35 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-let players = {}; // Players ka track rakhne ke liye
+let rooms = {}; 
 
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    socket.on('joinRoom', ({ username, room }) => {
+        socket.join(room);
+        if (!rooms[room]) rooms[room] = [];
+        
+        let role = rooms[room].length === 0 ? 'w' : 'b';
+        rooms[room].push({ id: socket.id, username, role });
 
-    // Pehle aane wala White, dusra Black
-    if (!players.white) {
-        players.white = socket.id;
-        socket.emit('playerRole', 'w');
-    } else if (!players.black) {
-        players.black = socket.id;
-        socket.emit('playerRole', 'b');
-    } else {
-        socket.emit('playerRole', 'viewer'); // Teesra banda sirf dekh payega
-    }
+        socket.emit('playerRole', { role, room });
+        io.to(room).emit('updateUserList', rooms[room]);
+    });
 
-    socket.on('chessMove', (move) => {
-        socket.broadcast.emit('moveFromServer', move);
+    socket.on('chessMove', (data) => {
+        socket.to(data.room).emit('moveFromServer', data.move);
+    });
+
+    socket.on('chatMessage', (data) => {
+        io.to(data.room).emit('chatMessage', data);
     });
 
     socket.on('disconnect', () => {
-        if (socket.id === players.white) delete players.white;
-        if (socket.id === players.black) delete players.black;
+        for (let room in rooms) {
+            rooms[room] = rooms[room].filter(p => p.id !== socket.id);
+            io.to(room).emit('updateUserList', rooms[room]);
+        }
     });
 });
 
-server.listen(3000, () => {
-    console.log('Game Live: http://localhost:3000');
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
