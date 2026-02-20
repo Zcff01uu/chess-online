@@ -6,23 +6,31 @@
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .menu-container { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #333; }
-        h2 { color: #f1c40f; margin: 0 0 20px 0; }
-        input#roomCode { width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; outline: none;}
-        .btn-stack { display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
-        #createBtn { background: #2980b9; color: white; }
-        #joinBtn { background: #27ae60; color: white; }
-        #botBtn { background: #c0392b; color: white; }
-        #myBoard { width: 95vw; max-width: 400px; border: 5px solid #333; border-radius: 8px; }
-        #status-bar { margin-top: 15px; padding: 12px; background: #222; width: 90%; max-width: 380px; text-align: center; border-radius: 8px; color: #f1c40f; font-weight: bold;}
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        
+        /* Menu Screen Styling */
+        #menu-screen { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); border: 1px solid #333; }
+        h1 { color: #f1c40f; text-shadow: 2px 2px #000; margin-bottom: 25px; }
+        input { width: 85%; padding: 15px; margin-bottom: 20px; border-radius: 10px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; outline: none; }
+        .btn-stack { display: flex; flex-direction: column; gap: 12px; }
+        button { padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; text-transform: uppercase; color: white; }
+        
+        #createBtn { background: #2980b9; }
+        #joinBtn { background: #27ae60; }
+        #botBtn { background: #c0392b; }
+        button:active { transform: scale(0.95); }
+
+        /* Game Screen (Pehle Chhupa rahega) */
+        #game-screen { display: none; width: 100%; max-width: 400px; text-align: center; }
+        #myBoard { width: 100%; border: 5px solid #333; border-radius: 10px; margin-top: 10px; }
+        #status-bar { margin-top: 15px; padding: 12px; background: #222; border-radius: 8px; color: #f1c40f; font-weight: bold; border: 1px solid #444; }
+        .back-btn { margin-top: 10px; background: #555; padding: 8px; font-size: 12px; width: 100px; align-self: center; }
     </style>
 </head>
 <body>
 
-    <div class="menu-container">
-        <h2>Sofia's Chess</h2>
+    <div id="menu-screen">
+        <h1>SOFIA'S CHESS</h1>
         <input type="text" id="roomCode" placeholder="Enter Code (e.g. 1122)">
         <div class="btn-stack">
             <button id="createBtn" onclick="handleOnline('create')">Create Room</button>
@@ -31,8 +39,11 @@
         </div>
     </div>
 
-    <div id="myBoard"></div>
-    <div id="status-bar">Status: Ready to Play</div>
+    <div id="game-screen">
+        <div id="status-bar">Status: Game Starting...</div>
+        <div id="myBoard"></div>
+        <button class="back-btn" onclick="location.reload()">Exit Game</button>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
@@ -47,53 +58,35 @@
         var playerRole = 'w';
         var currentRoom = null;
 
-        // --- Checkmate Animation Function ---
+        function showGame() {
+            $('#menu-screen').fadeOut(300, function() {
+                $('#game-screen').fadeIn(300);
+            });
+        }
+
         function triggerCheckmate(winner) {
-            $('#status-bar').text("CHECKMATE! " + (winner === 'w' ? "White" : "Black") + " WINS! 🎉");
-            
-            // Pataakhe (Confetti) Animation
-            var duration = 5 * 1000;
-            var end = Date.now() + duration;
-
-            (function frame() {
-              confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#f1c40f', '#ffffff', '#2980b9'] });
-              confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#f1c40f', '#ffffff', '#27ae60'] });
-
-              if (Date.now() < end) { requestAnimationFrame(frame); }
-            }());
+            $('#status-bar').text("CHECKMATE! 🎉");
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
         }
 
-        function checkGameStatus() {
-            if (game.in_checkmate()) {
-                let winner = game.turn() === 'w' ? 'b' : 'w';
-                triggerCheckmate(winner);
-            } else if (game.in_draw()) {
-                $('#status-bar').text("GAME DRAW! 🤝");
-            }
-        }
-
-        // --- BOT ENGINE ---
         function makeBotMove() {
             if (game.game_over()) return;
             let moves = game.moves();
-            // Simple smart move: Capture if possible
             let captures = moves.filter(m => m.includes('x'));
             let move = captures.length > 0 ? captures[0] : moves[Math.floor(Math.random() * moves.length)];
-            
             game.move(move);
             board.position(game.fen());
-            checkGameStatus();
+            if (game.in_checkmate()) triggerCheckmate();
         }
 
         function onDrop(source, target) {
             let move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-
-            checkGameStatus();
+            if (game.in_checkmate()) triggerCheckmate();
 
             if (isBotMode && !game.game_over()) {
                 window.setTimeout(makeBotMove, 500);
-            } else if (!isBotMode) {
+            } else {
                 socket.emit('chessMove', { move: move, room: currentRoom });
             }
         }
@@ -114,28 +107,31 @@
         }
 
         function startBot() {
-            isBotMode = true; game = new Chess(); initBoard('white');
-            $('#status-bar').text("Mode: vs Powerful Bot");
+            isBotMode = true;
+            showGame();
+            initBoard('white');
+            $('#status-bar').text("vs Powerful Bot");
         }
 
         function handleOnline(type) {
             let code = $('#roomCode').val();
-            if(!code) return alert("Code dalo!");
+            if(!code) return alert("Pehle 4-digit code dalo!");
             socket.emit('joinRoom', { room: code });
+            showGame();
         }
 
         socket.on('playerRole', (data) => {
-            playerRole = data.role; currentRoom = data.room;
+            playerRole = data.role;
+            currentRoom = data.room;
             initBoard(playerRole === 'w' ? 'white' : 'black');
+            $('#status-bar').text("Online Match - You are " + (playerRole === 'w' ? "White" : "Black"));
         });
 
         socket.on('moveFromServer', (move) => {
             game.move(move);
             board.position(game.fen());
-            checkGameStatus();
+            if (game.in_checkmate()) triggerCheckmate();
         });
-
-        initBoard('white');
     </script>
 </body>
 </html>
