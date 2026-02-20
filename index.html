@@ -2,31 +2,31 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sofia's Ultimate Grandmaster Chess</title>
+    <title>Sofia's Ultimate Chess</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .menu-container { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 15px; border: 1px solid #333; }
-        h2 { color: #f1c40f; margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 2px; }
-        input#roomCode { width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; outline: none; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .menu-container { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 20px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #333; }
+        h2 { color: #f1c40f; margin: 0 0 20px 0; }
+        input#roomCode { width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; }
         .btn-stack { display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; text-transform: uppercase; }
+        button { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
         #createBtn { background: #2980b9; color: white; }
         #joinBtn { background: #27ae60; color: white; }
-        #botBtn { background: #c0392b; color: white; border: 2px solid #e74c3c; }
-        #myBoard { width: 95vw; max-width: 400px; border: 5px solid #333; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        #status-bar { margin-top: 15px; padding: 12px; background: #222; width: 90%; max-width: 380px; text-align: center; border-radius: 8px; font-size: 14px; color: #f1c40f; border: 1px solid #444; }
+        #botBtn { background: #c0392b; color: white; }
+        #myBoard { width: 95vw; max-width: 400px; border: 5px solid #333; border-radius: 8px; }
+        #status-bar { margin-top: 15px; padding: 12px; background: #222; width: 90%; max-width: 380px; text-align: center; border-radius: 8px; color: #f1c40f; }
     </style>
 </head>
 <body>
 
     <div class="menu-container">
-        <h2>Grandmaster Engine</h2>
-        <input type="text" id="roomCode" placeholder="Enter 4-Digit Code">
+        <h2>Sofia's Grandmaster</h2>
+        <input type="text" id="roomCode" placeholder="Enter Code (e.g. 1122)">
         <div class="btn-stack">
             <button id="createBtn" onclick="handleOnline('create')">Create Room</button>
             <button id="joinBtn" onclick="handleOnline('join')">Join Online</button>
-            <button id="botBtn" onclick="startBot()">Play vs Ultimate Bot</button>
+            <button id="botBtn" onclick="startBot()">Play vs Powerful Bot</button>
         </div>
     </div>
 
@@ -39,90 +39,49 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-        var socket = io();
         var board = null;
         var game = new Chess();
+        var socket = io();
+        var isBotMode = false;
         var playerRole = 'w';
         var currentRoom = null;
-        var isBotMode = false;
 
-        // --- ULTIMATE BOT ENGINE ---
-        var reverseArray = function(array) { return array.slice().reverse(); };
-        var pawnEval = [ [0,0,0,0,0,0,0,0],[5,5,5,5,5,5,5,5],[1,1,2,3,3,2,1,1],[0.5,0.5,1,2.5,2.5,1,0.5,0.5],[0,0,0,2,2,0,0,0],[0.5,-0.5,-1,0,0,-1,-0.5,0.5],[0.5,1,1,-2,-2,1,1,0.5],[0,0,0,0,0,0,0,0] ];
-        var knightEval = [ [-5,-4,-3,-3,-3,-3,-4,-5],[-4,-2,0,0,0,0,-2,-4],[-3,0,0.5,1.5,1.5,0.5,0,-3],[-3,0.5,1,2,2,1,0.5,-3],[-3,0,1,2,2,1,0,-3],[-3,0.5,0.5,1.5,1.5,0.5,0.5,-3],[-4,-2,0,0.5,0.5,0,-2,-4],[-5,-4,-3,-3,-3,-3,-4,-5] ];
+        // --- BOT LOGIC (Powerful & Fast) ---
+        function getBestMove(game) {
+            let possibleMoves = game.moves();
+            if (possibleMoves.length === 0) return null;
 
-        function getPieceValue(piece, x, y) {
-            if (piece === null) return 0;
-            var getAbsoluteValue = function (p, isWhite, x, y) {
-                if (p.type === 'p') return 10 + (isWhite ? pawnEval[y][x] : pawnEval[7-y][x]);
-                if (p.type === 'r') return 50;
-                if (p.type === 'n') return 30 + knightEval[y][x];
-                if (p.type === 'b') return 30;
-                if (p.type === 'q') return 90;
-                if (p.type === 'k') return 900;
-                return 0;
-            };
-            return piece.color === 'w' ? -getAbsoluteValue(piece, true, x, y) : getAbsoluteValue(piece, false, x, y);
+            // Strategy: Pehle dekho kya koi piece mar raha hai? (Capture moves)
+            let captures = possibleMoves.filter(m => m.includes('x'));
+            if (captures.length > 0) return captures[Math.floor(Math.random() * captures.length)];
+
+            // Warna koi bhi best move chuno
+            return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
         }
 
-        function evaluateBoard(game) {
-            var total = 0;
-            for (var i=0; i<8; i++) {
-                for (var j=0; j<8; j++) { total += getPieceValue(game.board()[i][j], i, j); }
-            }
-            return total;
-        }
-
-        function minimax(game, depth, alpha, beta, isMax) {
-            if (depth === 0) return -evaluateBoard(game);
-            var moves = game.moves();
-            if (isMax) {
-                var best = -9999;
-                for (var i=0; i<moves.length; i++) {
-                    game.move(moves[i]);
-                    best = Math.max(best, minimax(game, depth - 1, alpha, beta, !isMax));
-                    game.undo();
-                    alpha = Math.max(alpha, best);
-                    if (beta <= alpha) break;
-                }
-                return best;
-            } else {
-                var best = 9999;
-                for (var i=0; i<moves.length; i++) {
-                    game.move(moves[i]);
-                    best = Math.min(best, minimax(game, depth - 1, alpha, beta, !isMax));
-                    game.undo();
-                    beta = Math.min(beta, best);
-                    if (beta <= alpha) break;
-                }
-                return best;
-            }
-        }
-
-        function makeUltimateMove() {
-            var moves = game.moves();
+        function makeBotMove() {
             if (game.game_over()) return;
-
-            var bestMove = null;
-            var bestValue = -9999;
-
-            for (var i=0; i<moves.length; i++) {
-                game.move(moves[i]);
-                var boardValue = minimax(game, 2, -10000, 10000, false);
-                game.undo();
-                if (boardValue > bestValue) {
-                    bestValue = boardValue;
-                    bestMove = moves[i];
-                }
-            }
-            game.move(bestMove);
+            let move = getBestMove(game);
+            game.move(move);
             board.position(game.fen());
-            if(game.game_over()) alert("Game Over!");
-            else $('#status-bar').text("Your turn, Sofia!");
+            $('#status-bar').text("Your turn, Sofia!");
+        }
+
+        // --- BOARD INITIALIZATION ---
+        function onDrop(source, target) {
+            let move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+
+            if (isBotMode) {
+                $('#status-bar').text("Bot is thinking...");
+                window.setTimeout(makeBotMove, 500);
+            } else {
+                socket.emit('chessMove', { move: move, room: currentRoom });
+            }
         }
 
         function initBoard(orient) {
-            board = ChessBoard('myBoard', {
+            let config = {
                 draggable: true,
                 position: 'start',
                 orientation: orient || 'white',
@@ -131,18 +90,18 @@
                     if (isBotMode && p.startsWith('b')) return false;
                     if (!isBotMode && ((playerRole === 'w' && p.startsWith('b')) || (playerRole === 'b' && p.startsWith('w')))) return false;
                 },
-                onDrop: (s, t) => {
-                    var move = game.move({ from: s, to: t, promotion: 'q' });
-                    if (move === null) return 'snapback';
-                    if (isBotMode) {
-                        $('#status-bar').text("Bot is calculating...");
-                        window.setTimeout(makeUltimateMove, 250);
-                    } else {
-                        socket.emit('chessMove', { move, room: currentRoom });
-                    }
-                },
+                onDrop: onDrop,
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-            });
+            };
+            board = ChessBoard('myBoard', config);
+        }
+
+        // --- BUTTON ACTIONS ---
+        function startBot() {
+            isBotMode = true;
+            game = new Chess();
+            initBoard('white');
+            $('#status-bar').text("Mode: vs Powerful Bot");
         }
 
         function handleOnline(type) {
@@ -150,20 +109,20 @@
             if(!code) return alert("Code dalo!");
             isBotMode = false;
             currentRoom = code;
-            socket.emit('joinRoom', { username: "Player", room: code });
-            $('#status-bar').text("Joined: " + code);
+            socket.emit('joinRoom', { room: code });
         }
 
-        function startBot() {
-            isBotMode = true;
-            playerRole = 'w';
-            game = new Chess();
-            initBoard('white');
-            $('#status-bar').text("Ultimate Bot Active. Good Luck Sofia!");
-        }
+        socket.on('playerRole', (data) => {
+            playerRole = data.role;
+            currentRoom = data.room;
+            initBoard(playerRole === 'w' ? 'white' : 'black');
+            $('#status-bar').text("Match Started! You are " + (playerRole === 'w' ? "White" : "Black"));
+        });
 
-        socket.on('playerRole', (d) => { playerRole = d.role; currentRoom = d.room; initBoard(playerRole === 'w' ? 'white' : 'black'); });
-        socket.on('moveFromServer', (m) => { game.move(m); board.position(game.fen()); });
+        socket.on('moveFromServer', (move) => {
+            game.move(move);
+            board.position(game.fen());
+        });
 
         initBoard('white');
     </script>
