@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sofia's Ultimate Chess</title>
+    <title>Ultimate Chess</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -10,14 +10,15 @@
         
         /* Menu Screen */
         #menu-screen { width: 90%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); border: 1px solid #333; display: block; }
-        h1 { color: #f1c40f; margin-bottom: 25px; }
-        input { width: 85%; padding: 15px; margin-bottom: 20px; border-radius: 10px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; }
+        h1 { color: #f1c40f; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
+        input { width: 85%; padding: 15px; margin-bottom: 20px; border-radius: 10px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; outline: none; }
         .btn-stack { display: flex; flex-direction: column; gap: 12px; }
-        button { padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; text-transform: uppercase; color: white; }
+        button { padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; text-transform: uppercase; color: white; transition: 0.2s; }
         
         #createBtn { background: #2980b9; }
         #joinBtn { background: #27ae60; }
         #botBtn { background: #c0392b; }
+        button:hover { opacity: 0.9; transform: scale(1.02); }
 
         /* Game Screen */
         #game-screen { display: none; width: 100%; max-width: 450px; text-align: center; }
@@ -29,7 +30,7 @@
 <body>
 
     <div id="menu-screen">
-        <h1>SOFIA'S CHESS</h1>
+        <h1>PLAY ULTIMATE CHESS</h1>
         <input type="text" id="roomCode" placeholder="Enter Code (e.g. 1122)">
         <div class="btn-stack">
             <button id="createBtn" onclick="handleOnline('create')">Create Room</button>
@@ -65,9 +66,7 @@
         function makeBotMove() {
             if (game.game_over()) return;
             let moves = game.moves();
-            // Powerful Logic: Pehle checkmate dekho, phir capture, phir random
             let move = moves.find(m => m.includes('#')) || moves.find(m => m.includes('x')) || moves[Math.floor(Math.random() * moves.length)];
-            
             game.move(move);
             board.position(game.fen());
             checkWinner();
@@ -83,7 +82,6 @@
         function onDrop(source, target) {
             let move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-
             checkWinner();
             if (isBotMode && !game.game_over()) {
                 $('#status-bar').text("Bot is thinking...");
@@ -94,7 +92,6 @@
         }
 
         function initBoard(orient) {
-            // Screen dikhane ke baad board initialize karna zaroori hai
             setTimeout(() => {
                 board = ChessBoard('myBoard', {
                     draggable: true,
@@ -108,7 +105,7 @@
                     onDrop: onDrop,
                     pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
                 });
-            }, 100);
+            }, 150);
         }
 
         function startBot() {
