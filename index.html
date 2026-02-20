@@ -2,28 +2,18 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sofia's Professional Chess</title>
+    <title>Sofia's Pro Chess</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         .menu-container { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 15px; }
         h2 { color: #3498db; margin-bottom: 20px; }
-        
-        input#roomCode { 
-            width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #333; 
-            background: #252525; color: white; font-size: 18px; text-align: center; outline: none;
-        }
-        input#roomCode:focus { border-color: #3498db; }
-
+        input#roomCode { width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #333; background: #252525; color: white; font-size: 18px; text-align: center; outline: none; }
         .btn-stack { display: flex; flex-direction: column; gap: 10px; }
         button { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
-        
-        #createBtn { background: #2980b9; color: white; } /* Create Room */
-        #joinBtn { background: #27ae60; color: white; }   /* Join Online */
-        #botBtn { background: #e67e22; color: white; }    /* Play with Bot */
-        
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        
+        #createBtn { background: #2980b9; color: white; }
+        #joinBtn { background: #27ae60; color: white; }
+        #botBtn { background: #e67e22; color: white; }
         #myBoard { width: 95vw; max-width: 400px; border: 4px solid #333; border-radius: 5px; }
         #status-bar { margin-top: 15px; padding: 10px; background: #333; width: 90%; max-width: 380px; text-align: center; border-radius: 5px; font-size: 14px; }
     </style>
@@ -31,13 +21,12 @@
 <body>
 
     <div class="menu-container">
-        <h2>Chess Master</h2>
+        <h2>Chess Master Pro</h2>
         <input type="text" id="roomCode" placeholder="Enter 4-Digit Code">
-        
         <div class="btn-stack">
             <button id="createBtn" onclick="handleOnline('create')">Create Room</button>
-            <button id="joinBtn" onclick="handleOnline('join')">Join Online</button>
-            <button id="botBtn" onclick="startBot()">Play with Bot</button>
+            <button id="joinBtn" onclick="handleOnline('join') )">Join Online</button>
+            <button id="botBtn" onclick="startBot()">Play with Powerful Bot</button>
         </div>
     </div>
 
@@ -57,20 +46,61 @@
         var currentRoom = null;
         var isBotMode = false;
 
+        // --- POWERFUL BOT LOGIC (MINIMAX) ---
+        var pieceValues = { 'p': 10, 'r': 50, 'n': 30, 'b': 30, 'q': 90, 'k': 900 };
+
+        function evaluateBoard(currentBoard) {
+            var totalEvaluation = 0;
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    totalEvaluation += getPieceValue(currentBoard[i][j]);
+                }
+            }
+            return totalEvaluation;
+        }
+
+        function getPieceValue(piece) {
+            if (piece === null) return 0;
+            var value = pieceValues[piece.type] || 0;
+            return piece.color === 'w' ? -value : value;
+        }
+
+        function makePowerfulMove() {
+            var possibleMoves = game.moves();
+            if (game.game_over()) return;
+
+            var bestMove = null;
+            var bestValue = -9999;
+
+            for (var i = 0; i < possibleMoves.length; i++) {
+                game.move(possibleMoves[i]);
+                var boardValue = evaluateBoard(game.board());
+                game.undo();
+                if (boardValue > bestValue) {
+                    bestValue = boardValue;
+                    bestMove = possibleMoves[i];
+                }
+            }
+            
+            game.move(bestMove || possibleMoves[0]);
+            board.position(game.fen());
+        }
+        // --- END BOT LOGIC ---
+
         function initBoard(orient) {
             board = ChessBoard('myBoard', {
                 draggable: true,
                 position: 'start',
                 orientation: orient || 'white',
-                onDragStart: (source, piece) => {
+                onDragStart: (s, p) => {
                     if (game.game_over()) return false;
-                    if (isBotMode && piece.search(/^b/) !== -1) return false;
-                    if (!isBotMode && ((playerRole === 'w' && piece.search(/^b/) !== -1) || (playerRole === 'b' && piece.search(/^w/) !== -1))) return false;
+                    if (isBotMode && p.search(/^b/) !== -1) return false;
+                    if (!isBotMode && ((playerRole === 'w' && p.search(/^b/) !== -1) || (playerRole === 'b' && p.search(/^w/) !== -1))) return false;
                 },
-                onDrop: (source, target) => {
-                    let move = game.move({ from: source, to: target, promotion: 'q' });
+                onDrop: (s, t) => {
+                    let move = game.move({ from: s, to: t, promotion: 'q' });
                     if (!move) return 'snapback';
-                    if (isBotMode) window.setTimeout(makeBotMove, 500);
+                    if (isBotMode) window.setTimeout(makePowerfulMove, 500);
                     else socket.emit('chessMove', { move, room: currentRoom });
                 },
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
@@ -79,14 +109,11 @@
 
         function handleOnline(type) {
             let code = $('#roomCode').val();
-            if(!code) return alert("Pehle 4-digit code likhein!");
-            
+            if(!code) return alert("Code likho!");
             isBotMode = false;
             currentRoom = code;
             socket.emit('joinRoom', { username: "Player", room: code });
-            
-            let msg = type === 'create' ? "Room Created! Share code: " : "Joining Room: ";
-            $('#status-bar').text(msg + code);
+            $('#status-bar').text((type === 'create' ? "Room Created: " : "Joined: ") + code);
         }
 
         function startBot() {
@@ -94,22 +121,13 @@
             playerRole = 'w';
             game = new Chess();
             initBoard('white');
-            $('#status-bar').text("Mode: Practice vs Bot (You are White)");
-        }
-
-        function makeBotMove() {
-            let moves = game.moves();
-            if (moves.length > 0) {
-                game.move(moves[Math.floor(Math.random() * moves.length)]);
-                board.position(game.fen());
-            }
+            $('#status-bar').text("Mode: vs Powerful Bot (Good Luck!)");
         }
 
         socket.on('playerRole', (data) => {
             playerRole = data.role;
             currentRoom = data.room;
             initBoard(playerRole === 'w' ? 'white' : 'black');
-            $('#status-bar').text("Game Live! Aap " + (playerRole === 'w' ? "White" : "Black") + " hain.");
         });
 
         socket.on('moveFromServer', (move) => {
