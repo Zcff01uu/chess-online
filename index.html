@@ -22,15 +22,16 @@
         #myBoard { width: 100%; border: 5px solid #333; border-radius: 10px; margin: 10px 0; }
         #status-bar { padding: 12px; background: #222; border-radius: 8px; color: #f1c40f; font-weight: bold; border: 1px solid #444; }
 
-        /* Play Again Pop-up */
+        /* EXIT Button hamesha ke liye */
+        .main-exit-btn { background: #555; margin-top: 15px; width: 120px; padding: 10px; font-size: 14px; }
+
+        /* Game Over Modal */
         #game-over-modal { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(30, 30, 30, 0.95); padding: 30px; border-radius: 15px; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.8); z-index: 1000; text-align: center; border: 2px solid #f1c40f;
+            background: rgba(30, 30, 30, 0.98); padding: 30px; border-radius: 15px; 
+            box-shadow: 0 0 30px rgba(0,0,0,1); z-index: 1000; text-align: center; border: 2px solid #f1c40f;
         }
-        #game-over-modal h2 { color: #f1c40f; margin-top: 0; }
-        .play-again-btn { background: #27ae60; margin-top: 15px; width: 100%; }
-        .exit-btn { background: #555; margin-top: 10px; width: 100%; }
+        .play-again-btn { background: #27ae60; width: 200px; }
     </style>
 </head>
 <body>
@@ -48,12 +49,12 @@
     <div id="game-screen">
         <div id="status-bar">Status: Waiting...</div>
         <div id="myBoard"></div>
+        <button class="main-exit-btn" onclick="location.reload()">EXIT GAME</button>
     </div>
 
     <div id="game-over-modal">
         <h2 id="winner-text">CHECKMATE!</h2>
         <button class="play-again-btn" onclick="resetGame()">PLAY AGAIN</button>
-        <button class="exit-btn" onclick="location.reload()">MAIN MENU</button>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -78,7 +79,7 @@
         function resetGame() {
             game.reset();
             board.start();
-            $('#game-over-modal').hide();
+            $('#game-over-modal').fadeOut();
             $('#status-bar').text(isBotMode ? "vs Powerful Bot" : "Game Restarted!");
         }
 
@@ -86,7 +87,7 @@
             confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
             $('#status-bar').text("GAME OVER!");
             $('#winner-text').text(winner + " WINS!");
-            setTimeout(() => { $('#game-over-modal').fadeIn(); }, 1500);
+            setTimeout(() => { $('#game-over-modal').fadeIn(); }, 1000);
         }
 
         function makeBotMove() {
@@ -111,7 +112,6 @@
         function onDrop(source, target) {
             let move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-            
             checkGameStatus();
             if (isBotMode && !game.game_over()) {
                 $('#status-bar').text("Bot is thinking...");
@@ -147,7 +147,7 @@
 
         function handleOnline(type) {
             let code = $('#roomCode').val();
-            if(!code) return alert("Enter Code!");
+            if(!code) return alert("Code dalo Sofia!");
             isBotMode = false;
             currentRoom = code;
             socket.emit('joinRoom', { room: code });
