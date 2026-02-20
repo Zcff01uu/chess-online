@@ -2,48 +2,47 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sofia's Private Chess</title>
+    <title>Sofia's Professional Chess</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .setup-container { width: 100%; max-width: 400px; text-align: center; margin-bottom: 15px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .menu-container { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 15px; }
+        h2 { color: #3498db; margin-bottom: 20px; }
         
-        /* Sirf Room Code ka input box */
         input#roomCode { 
-            width: 80%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border-radius: 8px; 
-            border: 2px solid #3498db; 
-            background: #2c3e50; 
-            color: white; 
-            font-size: 18px; 
-            text-align: center;
+            width: 85%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #333; 
+            background: #252525; color: white; font-size: 18px; text-align: center; outline: none;
         }
+        input#roomCode:focus { border-color: #3498db; }
 
-        .btn-group { display: flex; gap: 10px; justify-content: center; }
-        button { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; }
-        #joinBtn { background: #27ae60; color: white; }
-        #botBtn { background: #e67e22; color: white; }
+        .btn-stack { display: flex; flex-direction: column; gap: 10px; }
+        button { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
         
-        #myBoard { width: 95vw; max-width: 400px; margin-top: 10px; border: 3px solid #333; }
-        #status-msg { margin-top: 10px; color: #f1c40f; font-weight: bold; }
+        #createBtn { background: #2980b9; color: white; } /* Create Room */
+        #joinBtn { background: #27ae60; color: white; }   /* Join Online */
+        #botBtn { background: #e67e22; color: white; }    /* Play with Bot */
+        
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        
+        #myBoard { width: 95vw; max-width: 400px; border: 4px solid #333; border-radius: 5px; }
+        #status-bar { margin-top: 15px; padding: 10px; background: #333; width: 90%; max-width: 380px; text-align: center; border-radius: 5px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div class="setup-container">
-        <h2>Enter Match Code</h2>
-        <input type="text" id="roomCode" placeholder="Enter Code (e.g. 5566)">
+    <div class="menu-container">
+        <h2>Chess Master</h2>
+        <input type="text" id="roomCode" placeholder="Enter 4-Digit Code">
         
-        <div class="btn-group">
-            <button id="joinBtn" onclick="connectOnline()">Join Online</button>
-            <button id="botBtn" onclick="startBot()">Practice vs Bot</button>
+        <div class="btn-stack">
+            <button id="createBtn" onclick="handleOnline('create')">Create Room</button>
+            <button id="joinBtn" onclick="handleOnline('join')">Join Online</button>
+            <button id="botBtn" onclick="startBot()">Play with Bot</button>
         </div>
-        <div id="status-msg">Game Status: Not Connected</div>
     </div>
 
     <div id="myBoard"></div>
+    <div id="status-bar">Status: Waiting for action...</div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
@@ -63,13 +62,13 @@
                 draggable: true,
                 position: 'start',
                 orientation: orient || 'white',
-                onDragStart: (s, p) => {
+                onDragStart: (source, piece) => {
                     if (game.game_over()) return false;
-                    if (isBotMode && p.search(/^b/) !== -1) return false;
-                    if (!isBotMode && ((playerRole === 'w' && p.search(/^b/) !== -1) || (playerRole === 'b' && p.search(/^w/) !== -1))) return false;
+                    if (isBotMode && piece.search(/^b/) !== -1) return false;
+                    if (!isBotMode && ((playerRole === 'w' && piece.search(/^b/) !== -1) || (playerRole === 'b' && piece.search(/^w/) !== -1))) return false;
                 },
-                onDrop: (s, t) => {
-                    let move = game.move({ from: s, to: t, promotion: 'q' });
+                onDrop: (source, target) => {
+                    let move = game.move({ from: source, to: target, promotion: 'q' });
                     if (!move) return 'snapback';
                     if (isBotMode) window.setTimeout(makeBotMove, 500);
                     else socket.emit('chessMove', { move, room: currentRoom });
@@ -78,15 +77,16 @@
             });
         }
 
-        // Jab user code daal kar Join dabaye
-        function connectOnline() {
+        function handleOnline(type) {
             let code = $('#roomCode').val();
-            if(!code) return alert("Pehle koi code toh dalo!");
+            if(!code) return alert("Pehle 4-digit code likhein!");
             
             isBotMode = false;
             currentRoom = code;
-            socket.emit('joinRoom', { username: "Player", room: code }); // Username ab piche se "Player" hi jayega
-            $('#status-msg').text("Joining Room: " + code);
+            socket.emit('joinRoom', { username: "Player", room: code });
+            
+            let msg = type === 'create' ? "Room Created! Share code: " : "Joining Room: ";
+            $('#status-bar').text(msg + code);
         }
 
         function startBot() {
@@ -94,7 +94,7 @@
             playerRole = 'w';
             game = new Chess();
             initBoard('white');
-            $('#status-msg').text("Mode: Practice with Bot");
+            $('#status-bar').text("Mode: Practice vs Bot (You are White)");
         }
 
         function makeBotMove() {
@@ -109,7 +109,7 @@
             playerRole = data.role;
             currentRoom = data.room;
             initBoard(playerRole === 'w' ? 'white' : 'black');
-            $('#status-msg').text("Game Started! You are " + (playerRole === 'w' ? "White" : "Black"));
+            $('#status-bar').text("Game Live! Aap " + (playerRole === 'w' ? "White" : "Black") + " hain.");
         });
 
         socket.on('moveFromServer', (move) => {
