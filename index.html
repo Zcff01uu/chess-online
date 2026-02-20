@@ -2,29 +2,28 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sofia's Grandmaster Chess</title>
+    <title>Sofia's Ultimate Chess</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
         
-        /* Menu Screen Styling */
-        #menu-screen { width: 100%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); border: 1px solid #333; }
-        h1 { color: #f1c40f; text-shadow: 2px 2px #000; margin-bottom: 25px; }
-        input { width: 85%; padding: 15px; margin-bottom: 20px; border-radius: 10px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; outline: none; }
+        /* Menu Screen */
+        #menu-screen { width: 90%; max-width: 400px; text-align: center; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); border: 1px solid #333; display: block; }
+        h1 { color: #f1c40f; margin-bottom: 25px; }
+        input { width: 85%; padding: 15px; margin-bottom: 20px; border-radius: 10px; border: 2px solid #444; background: #252525; color: white; font-size: 18px; text-align: center; }
         .btn-stack { display: flex; flex-direction: column; gap: 12px; }
-        button { padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; text-transform: uppercase; color: white; }
+        button { padding: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; text-transform: uppercase; color: white; }
         
         #createBtn { background: #2980b9; }
         #joinBtn { background: #27ae60; }
         #botBtn { background: #c0392b; }
-        button:active { transform: scale(0.95); }
 
-        /* Game Screen (Pehle Chhupa rahega) */
-        #game-screen { display: none; width: 100%; max-width: 400px; text-align: center; }
-        #myBoard { width: 100%; border: 5px solid #333; border-radius: 10px; margin-top: 10px; }
-        #status-bar { margin-top: 15px; padding: 12px; background: #222; border-radius: 8px; color: #f1c40f; font-weight: bold; border: 1px solid #444; }
-        .back-btn { margin-top: 10px; background: #555; padding: 8px; font-size: 12px; width: 100px; align-self: center; }
+        /* Game Screen */
+        #game-screen { display: none; width: 100%; max-width: 450px; text-align: center; }
+        #myBoard { width: 100%; border: 5px solid #333; border-radius: 10px; margin: 10px 0; }
+        #status-bar { padding: 12px; background: #222; border-radius: 8px; color: #f1c40f; font-weight: bold; border: 1px solid #444; margin-bottom: 10px; }
+        .exit-btn { background: #555; padding: 10px 20px; font-size: 14px; width: fit-content; margin: 10px auto; }
     </style>
 </head>
 <body>
@@ -40,9 +39,9 @@
     </div>
 
     <div id="game-screen">
-        <div id="status-bar">Status: Game Starting...</div>
+        <div id="status-bar">Status: Waiting...</div>
         <div id="myBoard"></div>
-        <button class="back-btn" onclick="location.reload()">Exit Game</button>
+        <button class="exit-btn" onclick="location.reload()">EXIT GAME</button>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -58,79 +57,87 @@
         var playerRole = 'w';
         var currentRoom = null;
 
-        function showGame() {
-            $('#menu-screen').fadeOut(300, function() {
-                $('#game-screen').fadeIn(300);
-            });
-        }
-
-        function triggerCheckmate(winner) {
-            $('#status-bar').text("CHECKMATE! 🎉");
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        function showGameScreen() {
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
         }
 
         function makeBotMove() {
             if (game.game_over()) return;
             let moves = game.moves();
-            let captures = moves.filter(m => m.includes('x'));
-            let move = captures.length > 0 ? captures[0] : moves[Math.floor(Math.random() * moves.length)];
+            // Powerful Logic: Pehle checkmate dekho, phir capture, phir random
+            let move = moves.find(m => m.includes('#')) || moves.find(m => m.includes('x')) || moves[Math.floor(Math.random() * moves.length)];
+            
             game.move(move);
             board.position(game.fen());
-            if (game.in_checkmate()) triggerCheckmate();
+            checkWinner();
+        }
+
+        function checkWinner() {
+            if (game.in_checkmate()) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                $('#status-bar').text("CHECKMATE! 🎉");
+            }
         }
 
         function onDrop(source, target) {
             let move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-            if (game.in_checkmate()) triggerCheckmate();
 
+            checkWinner();
             if (isBotMode && !game.game_over()) {
-                window.setTimeout(makeBotMove, 500);
-            } else {
+                $('#status-bar').text("Bot is thinking...");
+                window.setTimeout(makeBotMove, 600);
+            } else if (!isBotMode) {
                 socket.emit('chessMove', { move: move, room: currentRoom });
             }
         }
 
         function initBoard(orient) {
-            board = ChessBoard('myBoard', {
-                draggable: true,
-                position: 'start',
-                orientation: orient || 'white',
-                onDragStart: (s, p) => {
-                    if (game.game_over()) return false;
-                    if (isBotMode && p.startsWith('b')) return false;
-                    if (!isBotMode && ((playerRole === 'w' && p.startsWith('b')) || (playerRole === 'b' && p.startsWith('w')))) return false;
-                },
-                onDrop: onDrop,
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-            });
+            // Screen dikhane ke baad board initialize karna zaroori hai
+            setTimeout(() => {
+                board = ChessBoard('myBoard', {
+                    draggable: true,
+                    position: 'start',
+                    orientation: orient || 'white',
+                    onDragStart: (s, p) => {
+                        if (game.game_over()) return false;
+                        if (isBotMode && p.startsWith('b')) return false;
+                        if (!isBotMode && ((playerRole === 'w' && p.startsWith('b')) || (playerRole === 'b' && p.startsWith('w')))) return false;
+                    },
+                    onDrop: onDrop,
+                    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+                });
+            }, 100);
         }
 
         function startBot() {
             isBotMode = true;
-            showGame();
+            showGameScreen();
             initBoard('white');
             $('#status-bar').text("vs Powerful Bot");
         }
 
         function handleOnline(type) {
             let code = $('#roomCode').val();
-            if(!code) return alert("Pehle 4-digit code dalo!");
+            if(!code) return alert("Pehle code dalo!");
+            isBotMode = false;
+            currentRoom = code;
             socket.emit('joinRoom', { room: code });
-            showGame();
+            showGameScreen();
         }
 
         socket.on('playerRole', (data) => {
             playerRole = data.role;
             currentRoom = data.room;
             initBoard(playerRole === 'w' ? 'white' : 'black');
-            $('#status-bar').text("Online Match - You are " + (playerRole === 'w' ? "White" : "Black"));
+            $('#status-bar').text("Match Started! You are " + (playerRole === 'w' ? "White" : "Black"));
         });
 
         socket.on('moveFromServer', (move) => {
             game.move(move);
             board.position(game.fen());
-            if (game.in_checkmate()) triggerCheckmate();
+            checkWinner();
         });
     </script>
 </body>
